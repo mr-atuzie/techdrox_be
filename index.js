@@ -7,6 +7,7 @@ const { errorHandler, notFound } = require("./middlewares/errorMiddleware");
 const cookieParser = require("cookie-parser");
 
 const userRoutes = require("./routes/user");
+const transactionRoutes = require("./routes/transaction");
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/transaction", transactionRoutes);
 
 app.use(errorHandler);
 app.use(notFound);
