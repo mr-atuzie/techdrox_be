@@ -1,8 +1,14 @@
 const express = require("express");
 const router = express.Router();
-const { contactUs, signUp } = require("../controllers/user");
+const { registerUser, loginUser, logoutUser } = require("../controllers/user");
 
-router.post("/contact-us", contactUs);
-router.post("/sign-up", signUp);
+// @route   POST /api/v1/users/register
+router.post("/register", registerUser);
+
+// @route   POST /api/v1/users/login
+router.post("/login", loginUser);
+
+// @route   GET /api/v1/users/logout
+router.get("/logout", logoutUser);
 
 module.exports = router;

@@ -1,83 +1,127 @@
 const User = require("../models/User");
-const {
-  getContactFormEmailTemplate,
-  getContactAcknowledgmentEmailTemplate,
-} = require("../utils/emailTemplates");
-const sendEmail = require("../utils/sendEmail");
 const asyncHandler = require("express-async-handler");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
-const contactUs = asyncHandler(async (req, res) => {
-  const { firstName, lastName, email, phone, subject, message } = req.body;
+// Generate JWT Token
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
+};
 
-  // 1. Validate input
-  //   if (!name || !email || !password) {
-  //     res.status(400);
-  //     throw new Error("Please enter all required fields");
-  //   }
+// Register a new user
+const registerUser = asyncHandler(async (req, res) => {
+  const { name, email, password, phone } = req.body;
 
-  // Send email
-  try {
-    await sendEmail(
-      "New contact form submission from SOHCAHTOA",
-      getContactFormEmailTemplate(
-        firstName,
-        lastName,
-        email,
-        phone,
-        subject,
-        message
-      ),
-      process.env.EMAIL_USER,
-      email,
-      email
-    );
-
-    await sendEmail(
-      "Your message has bee sent to SOHCAHTOA support team",
-      getContactAcknowledgmentEmailTemplate(firstName),
-      email,
-      process.env.EMAIL_USER,
-      process.env.EMAIL_USER
-    );
-
-    res.status(201).json({
-      message: "contact us",
-    });
-  } catch (err) {
-    console.log(err);
-
-    res.status(500);
-    throw new Error("Email not sent. Please try again.");
-  }
-});
-
-const signUp = asyncHandler(async (req, res) => {
-  const { fullName, phone, email, address, country, state, transaction } =
-    req.body;
-
-  console.log(req.body);
-
-  // Validate required fields
-  if (!fullName || !phone || !email) {
-    return res
-      .status(400)
-      .json({ message: "Full name, phone, and email are required" });
+  if (!name || !email || !password || !phone) {
+    res.status(400);
+    throw new Error("Please enter all required fields");
   }
 
-  // Create new user in DB
-  const user = await User.create({
-    fullName,
-    phone,
+  // Check if user already exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    res.status(400);
+    throw new Error("Email already exists");
+  }
+
+  // Hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  // Create new user
+  const newUser = await User.create({
+    name,
     email,
-    address: address || "",
-    country: country || "",
-    state: state || "",
-    transaction: transaction || "",
+    password: hashedPassword,
+    phone,
   });
 
-  console.log("New signup:", user);
+  if (!newUser) {
+    res.status(400);
+    throw new Error("Invalid user data");
+  }
 
-  return res.status(200).json({ message: "Signup successful", user });
+  // Generate JWT token (expires in 7 days)
+  const token = generateToken(newUser._id);
+
+  // Set cookie to expire in 7 days
+  res.cookie("token", token, {
+    path: "/",
+    httpOnly: true,
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    sameSite: "none",
+    secure: true,
+  });
+
+  res.status(201).json({
+    success: true,
+    msg: "User registered successfully",
+    user: {
+      _id: newUser._id,
+      name: newUser.name,
+      email: newUser.email,
+      phone: newUser.phone,
+    },
+    token,
+  });
 });
 
-module.exports = { contactUs, signUp };
+// Login user
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    res.status(400);
+    throw new Error("Please provide email and password");
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) {
+    res.status(401);
+    throw new Error("Invalid credentials");
+  }
+
+  const token = generateToken(user._id);
+
+  // Set cookie (7 days)
+  res.cookie("token", token, {
+    path: "/",
+    httpOnly: true,
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    sameSite: "none",
+    secure: true,
+  });
+
+  res.status(200).json({
+    success: true,
+    msg: "Login successful",
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+    },
+    token,
+  });
+});
+
+// Logout User
+const logoutUser = asyncHandler(async (req, res) => {
+  res.cookie("token", "", {
+    path: "/",
+    httpOnly: true,
+    expires: new Date(0),
+    sameSite: "none",
+    secure: true,
+  });
+
+  res.status(200).json({ success: true, msg: "Logged out successfully" });
+});
+
+module.exports = { registerUser, loginUser, logoutUser };

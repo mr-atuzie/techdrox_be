@@ -2,38 +2,28 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    fullName: {
+    name: {
       type: String,
-      required: true,
+      required: [true, "Please enter your full name"],
+      minlength: [3, "Full name must be at least 3 characters"],
       trim: true,
     },
     phone: {
       type: String,
-      required: true,
+      required: [true, "Please enter a valid phone number"],
+      minlength: [10, "Phone number must be at least 10 digits"],
       trim: true,
     },
     email: {
       type: String,
-      required: true,
+      required: [true, "Please enter a valid email address"],
       lowercase: true,
       trim: true,
     },
-    address: {
+    password: {
       type: String,
-      default: "",
-    },
-    country: {
-      type: String,
-      default: "",
-    },
-    state: {
-      type: String,
-      default: "",
-    },
-    transaction: {
-      type: String,
-      enum: ["Buy", "Sell", ""], // Only allow Buy or Sell if provided
-      default: "",
+      required: [true, "Please enter a valid password"],
+      minlength: [6, "Password must be at least 6 characters"],
     },
   },
   { timestamps: true }
