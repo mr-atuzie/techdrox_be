@@ -130,7 +130,7 @@ const StudentProfile = require("../models/StudentProfile");
 const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const sendEmail = require("../utils/emailService");
+// const sendEmail = require("../utils/emailService");
 
 // Generate JWT Token
 const generateToken = (userId) => {
